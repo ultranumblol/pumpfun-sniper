@@ -324,16 +324,22 @@ def score_token(ca: str) -> ScoreResult:
     # Dev SOL balance (already computed in score_dev_wallet, re-fetch for structured data)
     dev_sol = get_sol_balance(creator) if creator else -1
 
+    # DexScreener provides reliable name/symbol/image even when pump.fun API is down
+    dex_base = dex.get("baseToken", {}) if dex else {}
+    dex_info_block = dex.get("info", {}) if dex else {}
+    dex_socials = {s.get("type", ""): s.get("url", "") for s in dex_info_block.get("socials", [])}
+    dex_websites = [w.get("url", "") for w in dex_info_block.get("websites", [])]
+
     result.token_meta = {
-        "name": meta.get("name", "Unknown"),
-        "symbol": meta.get("symbol", "???"),
+        "name":   meta.get("name") or dex_base.get("name", "Unknown"),
+        "symbol": meta.get("symbol") or dex_base.get("symbol", "???"),
         "creator": creator,
         "dev_sol_balance": round(dev_sol, 4) if dev_sol != -1 else None,
         "description": meta.get("description", ""),
-        "twitter": meta.get("twitter", ""),
-        "telegram": meta.get("telegram", ""),
-        "website": meta.get("website", ""),
-        "image_uri": meta.get("image_uri", ""),
+        "twitter":  meta.get("twitter", "") or dex_socials.get("twitter", ""),
+        "telegram": meta.get("telegram", "") or dex_socials.get("telegram", ""),
+        "website":  meta.get("website", "") or (dex_websites[0] if dex_websites else ""),
+        "image_uri": meta.get("image_uri", "") or dex_info_block.get("imageUrl", ""),
         "price_usd": dex.get("priceUsd", "0") if dex else "0",
         "price_change": dex.get("priceChange", {}) if dex else {},
         "liquidity_usd": dex.get("liquidity", {}).get("usd", 0) if dex else 0,
