@@ -304,18 +304,46 @@ def score_token(ca: str) -> ScoreResult:
     creator = meta.get("creator", "")
     helius_txs = fetch_wallet_tx_history(creator) if creator else []
 
-    # Store token metadata
+    # Token age from DexScreener
+    pair_created_at = dex.get("pairCreatedAt") if dex else None
+    age_seconds = 0
+    age_str = "unknown"
+    if pair_created_at:
+        age_seconds = int(time.time()) - pair_created_at // 1000
+        if age_seconds < 3600:
+            age_str = f"{age_seconds // 60}m"
+        elif age_seconds < 86400:
+            h = age_seconds // 3600
+            m = (age_seconds % 3600) // 60
+            age_str = f"{h}h {m}m"
+        else:
+            d = age_seconds // 86400
+            h = (age_seconds % 86400) // 3600
+            age_str = f"{d}d {h}h"
+
+    # Dev SOL balance (already computed in score_dev_wallet, re-fetch for structured data)
+    dev_sol = get_sol_balance(creator) if creator else -1
+
     result.token_meta = {
         "name": meta.get("name", "Unknown"),
         "symbol": meta.get("symbol", "???"),
         "creator": creator,
+        "dev_sol_balance": round(dev_sol, 4) if dev_sol != -1 else None,
         "description": meta.get("description", ""),
         "twitter": meta.get("twitter", ""),
         "telegram": meta.get("telegram", ""),
         "website": meta.get("website", ""),
+        "image_uri": meta.get("image_uri", ""),
         "price_usd": dex.get("priceUsd", "0") if dex else "0",
+        "price_change": dex.get("priceChange", {}) if dex else {},
         "liquidity_usd": dex.get("liquidity", {}).get("usd", 0) if dex else 0,
+        "fdv": dex.get("fdv", 0) if dex else 0,
         "market_cap": dex.get("marketCap", 0) if dex else 0,
+        "volume": dex.get("volume", {}) if dex else {},
+        "txns": dex.get("txns", {}) if dex else {},
+        "dex": dex.get("dexId", "") if dex else "",
+        "age_str": age_str,
+        "age_seconds": age_seconds,
     }
 
     # Run scoring modules
